@@ -1,0 +1,273 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderStatus {
+  DRAFT
+  READY
+  IN_PROGRESS
+  BLOCKED
+  COMPLETED
+  CANCELLED
+}
+
+enum ProcessRunStatus {
+  PENDING
+  WORKING
+  COMPLETED
+  BLOCKED
+  REWORK
+  SKIPPED
+}
+
+enum IssueStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+model User {
+  id               String        @id @default(cuid())
+  name             String
+  email            String?       @unique
+  role             String?
+  specialization   String?
+  isActive         Boolean       @default(true)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  assignedRuns     ProcessRun[]  @relation("AssignedUser")
+  createdIssues    Issue[]       @relation("IssueCreatedBy")
+  orderAssignments OrderAssignment[]
+  currentAssignedOrders ProductionOrder[] @relation("CurrentAssignedUser")
+  defaultProcessTemplates ProductProcessTemplate[]
+  changedOrderLogs OrderHistoryLog[]
+
+  @@index([name])
+  @@index([isActive])
+}
+
+model Product {
+  id                 String              @id @default(cuid())
+  name               String
+  sku                String?             @unique
+  description        String?
+  defaultQuantity    Int?
+  material           String?
+  stoneType          String?
+  platingType        String?
+  finishType         String?
+  isActive           Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  productionOrders   ProductionOrder[]
+  productProcesses   ProductProcessTemplate[]
+
+  @@index([name])
+  @@index([isActive])
+}
+
+model ProductionOrder {
+  id                    String             @id @default(cuid())
+  orderNumber           String             @unique
+  title                 String?
+  productId             String
+  quantity              Int
+  dueDate               DateTime?
+  priority              Priority           @default(MEDIUM)
+  status                OrderStatus        @default(DRAFT)
+  specification         String?
+  notes                 String?
+  currentProcessId      String?
+  currentAssignedUserId String?
+  startedAt             DateTime?
+  completedAt           DateTime?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  product               Product            @relation(fields: [productId], references: [id], onDelete: Restrict)
+  currentProcess        ProcessMaster?     @relation("CurrentProcess", fields: [currentProcessId], references: [id], onDelete: SetNull)
+  currentAssignedUser   User?              @relation("CurrentAssignedUser", fields: [currentAssignedUserId], references: [id], onDelete: SetNull)
+
+  processRuns           ProcessRun[]
+  issues                Issue[]
+  assignments           OrderAssignment[]
+  historyLogs           OrderHistoryLog[]
+
+  @@index([productId])
+  @@index([status])
+  @@index([priority])
+  @@index([dueDate])
+  @@index([currentProcessId])
+  @@index([currentAssignedUserId])
+}
+
+model ProcessMaster {
+  id                      String                   @id @default(cuid())
+  code                    String                   @unique
+  name                    String
+  description             String?
+  sortOrder               Int
+  isActive                Boolean                  @default(true)
+  allowMultiplePasses     Boolean                  @default(false)
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+
+  productTemplates        ProductProcessTemplate[]
+  processRuns             ProcessRun[]
+  currentOrders           ProductionOrder[]        @relation("CurrentProcess")
+  issues                  Issue[]
+  orderAssignments        OrderAssignment[]
+  fromTransitions         ProcessTransition[]      @relation("TransitionFrom")
+  toTransitions           ProcessTransition[]      @relation("TransitionTo")
+  logsFrom                OrderHistoryLog[]        @relation("HistoryFromProcess")
+  logsTo                  OrderHistoryLog[]        @relation("HistoryToProcess")
+
+  @@index([sortOrder])
+  @@index([isActive])
+}
+
+model ProductProcessTemplate {
+  id               String         @id @default(cuid())
+  productId        String
+  processId        String
+  sortOrder        Int
+  isRequired       Boolean        @default(true)
+  defaultAssigneeId String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  product          Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  process          ProcessMaster  @relation(fields: [processId], references: [id], onDelete: Restrict)
+  defaultAssignee  User?          @relation(fields: [defaultAssigneeId], references: [id], onDelete: SetNull)
+
+  @@unique([productId, processId])
+  @@index([productId, sortOrder])
+  @@index([processId])
+  @@index([defaultAssigneeId])
+}
+
+model ProcessRun {
+  id                 String            @id @default(cuid())
+  productionOrderId  String
+  processId          String
+  assignedUserId     String?
+  passNumber         Int               @default(1)
+  status             ProcessRunStatus  @default(PENDING)
+  startedAt          DateTime?
+  endedAt            DateTime?
+  reworkReason       String?
+  notes              String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  productionOrder    ProductionOrder   @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  process            ProcessMaster     @relation(fields: [processId], references: [id], onDelete: Restrict)
+  assignedUser       User?             @relation("AssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  issues             Issue[]
+
+  @@index([productionOrderId])
+  @@index([processId])
+  @@index([assignedUserId])
+  @@index([status])
+  @@index([startedAt])
+  @@index([endedAt])
+  @@unique([productionOrderId, processId, passNumber])
+}
+
+model ProcessTransition {
+  id             String         @id @default(cuid())
+  fromProcessId  String
+  toProcessId    String
+  isReworkPath   Boolean        @default(false)
+  reasonLabel    String?
+  createdAt      DateTime       @default(now())
+
+  fromProcess    ProcessMaster  @relation("TransitionFrom", fields: [fromProcessId], references: [id], onDelete: Cascade)
+  toProcess      ProcessMaster  @relation("TransitionTo", fields: [toProcessId], references: [id], onDelete: Cascade)
+
+  @@unique([fromProcessId, toProcessId, isReworkPath])
+  @@index([fromProcessId])
+  @@index([toProcessId])
+}
+
+model Issue {
+  id                 String          @id @default(cuid())
+  productionOrderId  String
+  processId          String?
+  processRunId       String?
+  createdById        String?
+  title              String
+  description        String?
+  status             IssueStatus     @default(OPEN)
+  occurredAt         DateTime?
+  resolvedAt         DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  productionOrder    ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  process            ProcessMaster?  @relation(fields: [processId], references: [id], onDelete: SetNull)
+  processRun         ProcessRun?     @relation(fields: [processRunId], references: [id], onDelete: SetNull)
+  createdBy          User?           @relation("IssueCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([productionOrderId])
+  @@index([processId])
+  @@index([processRunId])
+  @@index([createdById])
+  @@index([status])
+}
+
+model OrderAssignment {
+  id                 String          @id @default(cuid())
+  productionOrderId  String
+  userId             String
+  processId          String?
+  assignedAt         DateTime        @default(now())
+  unassignedAt       DateTime?
+  notes              String?
+
+  productionOrder    ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  user               User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  process            ProcessMaster?  @relation(fields: [processId], references: [id], onDelete: SetNull)
+
+  @@index([productionOrderId])
+  @@index([userId])
+  @@index([processId])
+}
+
+model OrderHistoryLog {
+  id                 String          @id @default(cuid())
+  productionOrderId  String
+  fromProcessId      String?
+  toProcessId        String?
+  changedById        String?
+  action             String
+  reason             String?
+  note               String?
+  createdAt          DateTime        @default(now())
+
+  productionOrder    ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  fromProcess        ProcessMaster?  @relation("HistoryFromProcess", fields: [fromProcessId], references: [id], onDelete: SetNull)
+  toProcess          ProcessMaster?  @relation("HistoryToProcess", fields: [toProcessId], references: [id], onDelete: SetNull)
+  changedBy          User?           @relation(fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([productionOrderId])
+  @@index([fromProcessId])
+  @@index([toProcessId])
+  @@index([changedById])
+  @@index([createdAt])
+}
