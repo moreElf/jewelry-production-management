@@ -79,6 +79,21 @@ Do not seed production unless you intentionally want the sample users, products,
 
 After `DATABASE_URL` is set and the schema exists, redeploy from Vercel.
 
+### Common Vercel failure
+
+If Vercel shows `Application error: a server-side exception has occurred`, the most likely causes are:
+
+- `DATABASE_URL` is not set in the Vercel project
+- the Postgres database is reachable, but Prisma tables were never created
+
+Fix:
+
+```bash
+npx prisma db push
+```
+
+Then redeploy or refresh the site.
+
 ## Notes
 
 - The app is server-rendered and uses Prisma directly from the Next.js server.

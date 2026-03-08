@@ -37,8 +37,8 @@ export default async function OrdersPage({
 
       {referenceData.databaseUnavailable || ordersResult.databaseUnavailable ? (
         <EmptyState
-          title="Database unavailable"
-          copy="Prisma could not reach the configured database service. Start the local Prisma/Postgres instance or replace DATABASE_URL with a reachable PostgreSQL connection."
+          title="Database not ready"
+          copy="Prisma could not load order data. On Vercel, this usually means DATABASE_URL is missing or `npx prisma db push` has not been run on the hosted PostgreSQL database yet."
         />
       ) : (
         <>

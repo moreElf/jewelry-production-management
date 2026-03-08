@@ -28,9 +28,10 @@ export default async function ProductionOrderDetailPage({
         <header className="page-header">
           <div>
             <p className="eyebrow">Production Order</p>
-            <h1>Database unavailable</h1>
+            <h1>Database not ready</h1>
             <p className="section-copy">
-              Prisma could not reach the configured database service for this order detail view.
+              Prisma could not load this order. Check `DATABASE_URL` and make sure the Prisma schema has
+              been pushed to the production database.
             </p>
           </div>
         </header>

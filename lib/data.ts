@@ -9,15 +9,24 @@ const activeStatuses: OrderStatus[] = [
 ];
 
 function isDatabaseUnavailable(error: unknown) {
-  if (!(error instanceof Error)) {
-    return false;
-  }
+  const message = error instanceof Error ? error.message : "";
+  const code =
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof (error as { code?: unknown }).code === "string"
+      ? (error as { code: string }).code
+      : "";
 
   return (
-    error.message.includes("Cannot fetch data from service") ||
-    error.message.includes("fetch failed") ||
-    error.message.includes("Can't reach database server") ||
-    error.message.includes("P1001")
+    message.includes("Cannot fetch data from service") ||
+    message.includes("fetch failed") ||
+    message.includes("Can't reach database server") ||
+    message.includes("Environment variable not found: DATABASE_URL") ||
+    message.includes("table") ||
+    code === "P1001" ||
+    code === "P2021" ||
+    code === "P2022"
   );
 }
 

@@ -28,11 +28,11 @@ export default async function DashboardPage() {
       {data.databaseUnavailable ? (
         <SectionCard
           title="Database unavailable"
-          description="The app is running, but Prisma could not reach the configured database service. Check DATABASE_URL and start the local Prisma/Postgres service before using the dashboard."
+          description="The app is running, but Prisma could not read the application data. This usually means DATABASE_URL is missing, the database is unreachable, or the Prisma tables have not been created yet."
         >
           <p className="section-copy">
-            The current `.env` uses a `prisma+postgres` connection. If that local service is stopped,
-            Prisma returns a fetch failure instead of data.
+            On Vercel, set `DATABASE_URL` to your hosted Postgres instance, then run `npx prisma db push`
+            against that database before opening the app.
           </p>
         </SectionCard>
       ) : null}

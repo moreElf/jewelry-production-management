@@ -24,10 +24,10 @@ export default async function BoardPage() {
       <section className="board">
         {databaseUnavailable ? (
           <div className="board-column">
-            <h2>Database unavailable</h2>
+            <h2>Database not ready</h2>
             <p className="section-copy">
-              Prisma could not reach the configured database service. Start the backing local service and
-              reload the board.
+              Prisma could not load board data. On Vercel, this usually means the hosted Postgres
+              connection is missing or the Prisma schema has not been pushed yet.
             </p>
           </div>
         ) : null}
